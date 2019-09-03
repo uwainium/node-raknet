@@ -16,7 +16,7 @@ class RakServer extends EventEmitter {
      * @param {Number} port
      * @param {String} password
      */
-    constructor(ip, port, password) {
+    constructor(ip, port, password, callback) {
         /**
          *
          */
@@ -72,8 +72,11 @@ class RakServer extends EventEmitter {
             }
         });
 
+        let temp = this;
+
         this.server.on('listening', () => {
             this.onListening();
+            callback(temp);
         });
 
         this.server.bind(port, ip);
