@@ -230,6 +230,24 @@ class BitStream {
     }
 
     /**
+     * Writes a signed byte to the stream
+     * @param {Number} n The byte to write to the stream
+     */
+    writeSignedByte(n) {
+        // write the sign bit and correct
+        this.writeBit(n < 0);
+        n = Math.abs(n);
+
+        //we have to build an array of true and false... or we can just left shift it and do it that way
+        for(let i = 0; i < 7; i++) {
+            let t = (n & 0x80) >>> 7; //get the leftmost bit and put it on the right
+            this.writeBit(t === 1);
+            n <<= 1; //move to next bit...
+            n &= 0xFF; //ensure we are only looking at a byte...
+        }
+    }
+
+    /**
      * Writes a byte a offset
      * @param {Number} n Byte to write
      * @param {Number} o Offset to write at
@@ -313,6 +331,15 @@ class BitStream {
     }
 
     /**
+     * Writes an signed short to the stream
+     * @param {Number} n The number to write
+     */
+    writeSignedShort(n) {
+        this.writeByte(n & 0xff); //write the bottom byte
+        this.writeSignedByte((n & 0xff00) >>> 8); //write the top byte
+    }
+
+    /**
      * Writes a compressed short to this stream
      * @param {Number} n The short to compress
      */
@@ -365,6 +392,14 @@ class BitStream {
      */
     readSignedLong() {
         //lol no
+    }
+
+    /**
+     * Writes a signed long to the stream
+     */
+    writeSignedLong(n) {
+        this.writeShort(n & 0xffff); //write the lower two bytes...
+        this.writeSignedShort((n & 0xffff0000) >>> 16); //write the top two bytes
     }
 
     /**
