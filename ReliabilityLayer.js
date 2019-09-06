@@ -204,8 +204,9 @@ class ReliabilityLayer {
      * Sends a packet to a user
      * @param {BitStream} packet
      * @param {Number} reliability
+     * @param {Function} callback
      */
-    send(packet, reliability) {
+    send(packet, reliability, callback) {
         let orderingIndex;
         if (reliability === Reliability.UNRELIABLE_SEQUENCED) {
             orderingIndex = this.sequencedWriteIndex;
@@ -225,7 +226,8 @@ class ReliabilityLayer {
                 'packet': packet,
                 'reliability': reliability,
                 'orderingIndex': orderingIndex,
-                'splitPacketInfo': undefined
+                'splitPacketInfo': undefined,
+                'callback': callback
             });
         }
     }
@@ -244,7 +246,7 @@ class ReliabilityLayer {
             let index = this.sendMessageNumberIndex;
             this.sendMessageNumberIndex++;
 
-            this.sendMessage(packet.packet, index, packet.reliability, packet.orderingIndex, undefined);
+            this.sendMessage(packet.packet, index, packet.reliability, packet.orderingIndex, undefined, packet.callback);
         }
 
         if(!this.acks.isEmpty()) {
@@ -264,8 +266,9 @@ class ReliabilityLayer {
      * @param {Number} reliability
      * @param {Number} index
      * @param {Object} splitPacketInfo
+     * @param {Function} callback
      */
-    sendMessage(data, messageNumber, reliability, index, splitPacketInfo) {
+    sendMessage(data, messageNumber, reliability, index, splitPacketInfo, callback) {
         let send = new BitStream();
         send.writeBit(!this.acks.isEmpty() && false);
         if (!this.acks.isEmpty() && false) {
@@ -308,7 +311,7 @@ class ReliabilityLayer {
             send.writeByte(data.readByte());
         }
 
-        this.server.send(send.data, this.connection.port, this.connection.address); // Sends actual data to client here
+        this.server.send(send.data, this.connection.port, this.connection.address, callback); // Sends actual data to client here
     }
 
     /**
