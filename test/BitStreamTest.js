@@ -191,4 +191,17 @@ describe('BitStream', () => {
             assert.equal(stream.readBitsReversed(16), 0x5555);
         });
     });
+    describe('concat', () => {
+        it('should concat two bitstreams', () => {
+            let stream = new BitStream();
+            stream.writeByte(0x55);
+
+            let streamTwo = new BitStream();
+            streamTwo.writeByte(0xFF);
+
+            stream.concat(streamTwo);
+
+            assert.strictEqual(stream.readShort(), 0xFF55);
+        })
+    })
 });

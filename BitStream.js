@@ -659,6 +659,7 @@ class BitStream {
      */
     concat(bs) {
         this.data = Buffer.concat([this.data, bs.data]);
+        this._byteCount = this.data.length;
     }
 
     /**
