@@ -9,12 +9,12 @@ class BitStream {
      * @param {Buffer} data
      */
     constructor(data = undefined) {
+        this.data = Buffer.alloc(0);
+
         if(data !== undefined) {
             this.data = data;
         }
-        else {
-            this.data = Buffer.alloc(0);
-        }
+
         this._byteCount = this.data.length;
         //for reading data
         this._rBytePos = 0;
@@ -658,11 +658,7 @@ class BitStream {
      * @param {BitStream} bs The BitStream to add on
      */
     concat(bs) {
-        for(let i = 0; i < bs.length; i ++) {
-            for(let j = 0; j < bs[i].length(); j ++) {
-                this.writeByte(bs[i].readByte());
-            }
-        }
+        this.data = Buffer.concat([this.data, bs.data]);
     }
 
     /**
