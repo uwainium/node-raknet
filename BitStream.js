@@ -1,3 +1,5 @@
+let fs = require('fs');
+
 /**
  * The BitStream class used for reading data from a Buffer.
  */
@@ -752,6 +754,14 @@ class BitStream {
             output += temp[partone] + temp[parttwo] + ' ';
         }
         return output;
+    }
+
+    /**
+     * Writes this BitStream to a file
+     * @param {String} filename
+     */
+    toFile(filename) {
+        fs.writeFile(filename, this.data);
     }
 }
 
