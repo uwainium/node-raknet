@@ -761,7 +761,7 @@ class BitStream {
      * @param {String} filename
      */
     toFile(filename) {
-        fs.writeFile(filename, this.data);
+        fs.writeFileSync(filename, this.data);
     }
 }
 
