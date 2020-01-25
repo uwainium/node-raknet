@@ -1,4 +1,7 @@
 let fs = require('fs');
+let promisify = require('util').promisify;
+
+const writeFile = promisify(fs.writeFile);
 
 /**
  * The BitStream class used for reading data from a Buffer.
@@ -758,7 +761,7 @@ class BitStream {
      * @param {String} filename
      */
     toFile(filename) {
-        fs.writeFileSync(filename, this.data);
+        return writeFile(filename, this.data);
     }
 }
 

@@ -123,17 +123,19 @@ describe('BitStream', () => {
         });
     });
     describe('writeLongLong', () => {
-        let stream = new BitStream(Buffer.alloc(8));
-        stream.writeLongLong(0xAAAAAAAA, 0xBBBBBBBB);
-        console.log(stream.toBinaryString());
-        assert.equal(stream.data.readUInt8(0), 0xBB);
-        assert.equal(stream.data.readUInt8(1), 0xBB);
-        assert.equal(stream.data.readUInt8(2), 0xBB);
-        assert.equal(stream.data.readUInt8(3), 0xBB);
-        assert.equal(stream.data.readUInt8(4), 0xAA);
-        assert.equal(stream.data.readUInt8(5), 0xAA);
-        assert.equal(stream.data.readUInt8(6), 0xAA);
-        assert.equal(stream.data.readUInt8(7), 0xAA);
+        it('should write a long long', () => {
+            let stream = new BitStream(Buffer.alloc(8));
+            stream.writeLongLong(0xAAAAAAAA, 0xBBBBBBBB);
+            //console.log(stream.toBinaryString());
+            assert.strictEqual(stream.data.readUInt8(0), 0xBB);
+            assert.strictEqual(stream.data.readUInt8(1), 0xBB);
+            assert.strictEqual(stream.data.readUInt8(2), 0xBB);
+            assert.strictEqual(stream.data.readUInt8(3), 0xBB);
+            assert.strictEqual(stream.data.readUInt8(4), 0xAA);
+            assert.strictEqual(stream.data.readUInt8(5), 0xAA);
+            assert.strictEqual(stream.data.readUInt8(6), 0xAA);
+            assert.strictEqual(stream.data.readUInt8(7), 0xAA);
+        });
     });
     describe('writeFloat', () => {
         it('should write a float', () => {

@@ -207,29 +207,32 @@ class ReliabilityLayer {
      * @param {Function} callback
      */
     send(packet, reliability, callback) {
-        let orderingIndex;
-        if (reliability === Reliability.UNRELIABLE_SEQUENCED) {
-            orderingIndex = this.sequencedWriteIndex;
-            this.sequencedWriteIndex++;
-        } else if (reliability === Reliability.RELIABLE_ORDERED) {
-            orderingIndex = this.orderedWriteIndex;
-            this.orderedWriteIndex++;
-        } else {
-            orderingIndex = undefined;
-        }
+        return new Promise((resolve, reject) => {
+            let orderingIndex;
+            if (reliability === Reliability.UNRELIABLE_SEQUENCED) {
+                orderingIndex = this.sequencedWriteIndex;
+                this.sequencedWriteIndex++;
+            } else if (reliability === Reliability.RELIABLE_ORDERED) {
+                orderingIndex = this.orderedWriteIndex;
+                this.orderedWriteIndex++;
+            } else {
+                orderingIndex = undefined;
+            }
 
-        if (ReliabilityLayer.packetHeaderLength(reliability, false) + packet.length() >= MTU_SIZE - UDP_HEADER_SIZE) {
-            // TODO: Add a way to split packets and iterate through them to add them to the queue
-            console.info("This packet needs to be split up!");
-        } else {
-            this.sends.push({
-                'packet': packet,
-                'reliability': reliability,
-                'orderingIndex': orderingIndex,
-                'splitPacketInfo': undefined,
-                'callback': callback
-            });
-        }
+            if (ReliabilityLayer.packetHeaderLength(reliability, false) + packet.length() >= MTU_SIZE - UDP_HEADER_SIZE) {
+                // TODO: Add a way to split packets and iterate through them to add them to the queue
+                console.info("This packet needs to be split up!");
+            } else {
+                this.sends.push({
+                    'packet': packet,
+                    'reliability': reliability,
+                    'orderingIndex': orderingIndex,
+                    'splitPacketInfo': undefined,
+                    'callback': resolve
+                });
+            }
+        });
+
     }
 
     /**
@@ -311,7 +314,9 @@ class ReliabilityLayer {
             send.writeByte(data.readByte());
         }
 
-        this.server.send(send.data, this.connection.port, this.connection.address, callback); // Sends actual data to client here
+        this.server.send(send.data, this.connection.port, this.connection.address, () => {
+            callback();
+        }); // Sends actual data to client here
     }
 
     /**
