@@ -204,9 +204,8 @@ class ReliabilityLayer {
      * Sends a packet to a user
      * @param {BitStream} packet
      * @param {Number} reliability
-     * @param {Function} callback
      */
-    send(packet, reliability, callback) {
+    send(packet, reliability) {
         return new Promise((resolve, reject) => {
             let orderingIndex;
             if (reliability === Reliability.UNRELIABLE_SEQUENCED) {
