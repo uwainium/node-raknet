@@ -6,7 +6,6 @@ pipeline {
    stages {
        stage('Downloading Dependencies') {
            steps {
-               setBuildStatus("Build started", "PENDING");
                sh 'npm install'
            }
        }
