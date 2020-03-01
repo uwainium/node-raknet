@@ -9,14 +9,9 @@ pipeline {
         sh 'npm install'
       }
     }
-    stage('Tests') {
+    stage('Tests and Coverage') {
       steps {
         sh 'npm test'
-      }
-    }
-    stage('Coverage') {
-      steps {
-        sh 'npm coverage'
       }
     }
   }

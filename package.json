@@ -4,8 +4,7 @@
   "description": "A raknet library for node",
   "main": "RakServer.js",
   "scripts": {
-    "test": "mocha",
-    "coverage": "nyc npm run test"
+    "test": "nyc mocha"
   },
   "repository": {
     "type": "git",
