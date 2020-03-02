@@ -4,7 +4,7 @@
   "description": "A raknet library for node",
   "main": "RakServer.js",
   "scripts": {
-    "test": "mocha"
+    "test": "nyc mocha"
   },
   "repository": {
     "type": "git",
@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/RaineBannister/node-raknet#readme",
   "devDependencies": {
-    "mocha": "^5.2.0"
+    "mocha": "^5.2.0",
+    "nyc": "^15.0.0"
   }
 }
