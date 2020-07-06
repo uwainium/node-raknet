@@ -1,74 +1,95 @@
-let fs = require('fs');
-let promisify = require('util').promisify;
+import * as fs from 'fs';
+
+import {promisify} from 'util';
 
 const writeFile = promisify(fs.writeFile);
 
 /**
  * The BitStream class used for reading data from a Buffer.
  */
-class BitStream {
+export class BitStream {
+    #data: Buffer;
+    #byteCount: number;
+    
+    #readBytePosition: number;
+    #readBitPosition: number;
+    
+    #writeBytePosition: number;
+    #writeBitPosition: number;
+    
+    #byte: number;
+
+    readonly #mask: Array<number>;
+
     /**
      * Creates a new instance of the BitStream class and sets up the default values for some variables
      * @param {Buffer} data
      */
-    constructor(data = undefined) {
-        this.data = Buffer.alloc(0);
+    constructor(data:Buffer = undefined) {
+        this.#data = Buffer.alloc(0);
 
         if(data !== undefined) {
-            this.data = data;
+            this.#data = data;
         }
 
-        this._byteCount = this.data.length;
+        this.#byteCount = this.#data.length;
         //for reading data
-        this._rBytePos = 0;
-        this._rBitPos = 7;
+        this.#readBytePosition = 0;
+        this.#readBitPosition = 7;
         //for writing data
-        this._wBytePos = 0;
-        this._wBitPos = 7;
-        this._mask = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80];
+        this.#writeBytePosition = 0;
+        this.#writeBitPosition = 7;
+        this.#mask = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80];
 
-        this._byte = this._byteCount ? this.data.readUInt8(0) : undefined;
+        this.#byte = this.#byteCount ? this.#data.readUInt8(0) : undefined;
+    }
+
+    /**
+     * Returns the Buffer
+     */
+    get data() : Buffer {
+        return this.#data;
     }
 
     /**
      * Returns the length of this BitStream
-     * @returns {Number}
+     * @returns {number}
      */
-    length() {
-        return this._byteCount;
+    length() : number {
+        return this.#byteCount;
     }
 
     /**
      * Gets the number of bits in this stream
-     * @returns {Number}
+     * @returns {number}
      */
-    bits() {
-        return this._wBytePos * 8 + (8 - this._wBitPos) - 1;
+    bits() : number {
+        return this.#writeBytePosition * 8 + (8 - this.#writeBitPosition) - 1;
     }
 
     /**
      * Returns true if we are at the end of the stream
-     * @returns {Boolean}
+     * @returns {boolean}
      */
-    allRead() {
-        return this._rBytePos * 8 + this._rBitPos >= this._byteCount * 8 - 1;
+    allRead() : boolean {
+        return this.#readBytePosition * 8 + this.#readBitPosition >= this.#byteCount * 8 - 1;
     }
 
     /**
      * Reads a single bit from the Buffer
-     * @returns {Number}
+     * @returns {number}
      */
-    readBit() {
-        if (this._rBytePos >= this._byteCount) {
-            this._wBytePos = this._rBytePos;
+    readBit() : number {
+        if (this.#readBytePosition >= this.#byteCount) {
+            this.#writeBytePosition = this.#readBytePosition;
             this.writeByte(0);
         }
 
-        let byte = this.data.readUInt8(this._rBytePos);
-        let bit = (byte & this._mask[this._rBitPos]) >> this._rBitPos;
-        if (--this._rBitPos === -1) {
-            this._rBitPos = 7;
-            this._rBytePos++;
+        let byte = this.#data.readUInt8(this.#readBytePosition);
+        let bit = (byte & this.#mask[this.#readBitPosition]) >> this.#readBitPosition;
+        if (--this.#readBitPosition === -1) {
+            this.#readBitPosition = 7;
+            this.#readBytePosition++;
         }
         return bit;
     }
@@ -77,39 +98,39 @@ class BitStream {
      * Writes a single bit to the buffer
      * @param {boolean} b The bit to write
      */
-    writeBit(b) {
+    writeBit(b : boolean) : void {
         if(typeof(b) !== "boolean") {
             throw new Error("BitStream writeBit was not passed a boolean");
         }
         //if the wBitPos is in the first bit position, we have rolled over
-        if(this._wBitPos === 7) {
+        if(this.#writeBitPosition === 7) {
 
             //increase the buffer size...
-            let old = this.data;
-            this.data = Buffer.alloc(this._wBytePos + 1);
-            this._byteCount = this._wBytePos + 1;
+            let old = this.#data;
+            this.#data = Buffer.alloc(this.#writeBytePosition + 1);
+            this.#byteCount = this.#writeBytePosition + 1;
 
-            old.copy(this.data);
+            old.copy(this.#data);
 
-            this.data.writeUInt8(0, this._wBytePos);
+            this.#data.writeUInt8(0, this.#writeBytePosition);
 
         }
         //now we need to get the current byte...
-        let byte = this.data.readUInt8(this._wBytePos);
+        let byte = this.#data.readUInt8(this.#writeBytePosition);
 
         //set the bit
-        byte |= b << this._wBitPos;
+        byte |= Number(b) << this.#writeBitPosition;
 
         //write the byte
-        this.data.writeUInt8(byte, this._wBytePos);
+        this.#data.writeUInt8(byte, this.#writeBytePosition);
 
         //move to next bit
-        this._wBitPos --;
+        this.#writeBitPosition --;
 
         //if we are done writing this byte, move to the next one
-        if(this._wBitPos < 0) {
-            this._wBitPos = 7;
-            this._wBytePos ++;
+        if(this.#writeBitPosition < 0) {
+            this.#writeBitPosition = 7;
+            this.#writeBytePosition ++;
         }
     }
 
@@ -118,9 +139,9 @@ class BitStream {
      * @param {Number} n The number of bits to read
      * @returns {Number}
      */
-    readBits(n) {
+    readBits(n : number) : number {
         let val = 0;
-        if(this._rBytePos < this._byteCount) this._byte = this.data.readUInt8(this._rBytePos);
+        if(this.#readBytePosition < this.#byteCount) this.#byte = this.#data.readUInt8(this.#readBytePosition);
 
         while (n--) {
             let bit = this.readBit();
@@ -134,7 +155,7 @@ class BitStream {
      * @param {Number} n The number to write to the stream
      * @param {Number} b The number of bits to write
      */
-    writeBits(n, b) {
+    writeBits(n : number, b : number) : void {
         for(let i = b; i > 0; i --) {
             let temp = (n >> (i - 1)) & 0x01;
             this.writeBit(temp === 1);
@@ -146,7 +167,7 @@ class BitStream {
      * @param {Number} n The number of bits to read
      * @returns {Number}
      */
-    readBitsReversed(n) {
+    readBitsReversed(n : number) : number {
         let val = 0;
 
         // Don't know why I need this here, but I do
@@ -166,7 +187,7 @@ class BitStream {
      */
     readBitsStream(ret, n, b = true) {
         if(n <= 0) return undefined;
-        if(this._rBytePos + Math.floor(n/8) > this._byteCount) return undefined;
+        if(this.#readBytePosition + Math.floor(n/8) > this.#byteCount) return undefined;
 
         let c = 0;
         while(n > 0) {
@@ -179,9 +200,9 @@ class BitStream {
                 if(neg < 0) {
                     if(b) {
                         ret.writeByteOffset(ret.readByteOffset(c) >> -neg, c);
-                        this._rBytePos += 8 + neg;
+                        this.#readBytePosition += 8 + neg;
                     } else {
-                        this._rBytePos += 8;
+                        this.#readBytePosition += 8;
                     }
                 }
                 n = 0;
@@ -194,7 +215,7 @@ class BitStream {
      * Reads a byte from the buffer
      * @returns {Number}
      */
-    readByte() {
+    readByte() : number {
         return this.readBits(8);
     }
 
@@ -203,8 +224,8 @@ class BitStream {
      * @param {Number} o Offset byte
      * @returns {Number}
      */
-    readByteOffset(o) {
-        return this.data.readUInt8(o);
+    readByteOffset(o : number) : number {
+        return this.#data.readUInt8(o);
     }
 
     /**
@@ -212,9 +233,9 @@ class BitStream {
      * @param {Number} n Number of bytes
      * @returns {BitStream}
      */
-    readBytes(n) {
+    readBytes(n : number) : BitStream {
         let val = new BitStream();
-        while(n-- && this._rBytePos < this.length()) {
+        while(n-- && this.#readBytePosition < this.length()) {
             val.writeByte(this.readByte());
         }
         return val;
@@ -224,7 +245,7 @@ class BitStream {
      * Writes a byte to the stream
      * @param {Number} n The byte to write to the stream
      */
-    writeByte(n) {
+    writeByte(n : number) : void {
         //we have to build an array of true and false... or we can just left shift it and do it that way
         for(let i = 0; i < 8; i++) {
             let t = (n & 0x80) >>> 7; //get the leftmost bit and put it on the right
@@ -238,7 +259,7 @@ class BitStream {
      * Writes a signed byte to the stream
      * @param {Number} n The byte to write to the stream
      */
-    writeSignedByte(n) {
+    writeSignedByte(n : number) : void {
         // write the sign bit and correct
         this.writeBit(n < 0);
         n = Math.abs(n);
@@ -257,32 +278,33 @@ class BitStream {
      * @param {Number} n Byte to write
      * @param {Number} o Offset to write at
      */
-    writeByteOffset(n, o) {
+    writeByteOffset(n : number, o : number) : void {
+        let old = this.#data;
         if(o + 1> this.length()) { //we are trying to write outside the current size... resizing to fix...
-            this.data = Buffer.alloc(o + 1, 0);
-            this._byteCount = this._wBytePos + 1;
+            this.#data = Buffer.alloc(o + 1, 0);
+            this.#byteCount = this.#writeBytePosition + 1;
 
-            for(let i = 0; i < this._wBytePos; i ++) {
-                this.data.writeUInt8(old.readUInt8(i), i); //copy over into new Buffer
+            for(let i = 0; i < this.#writeBytePosition; i ++) {
+                this.#data.writeUInt8(old.readUInt8(i), i); //copy over into new Buffer
             }
-            this._byteCount = o + 1;
+            this.#byteCount = o + 1;
         }
-        this.data.writeUInt8(n, o);
+        this.#data.writeUInt8(n, o);
     }
 
     /**
      * Reads a character from the stream
-     * @returns {Number}
+     * @returns {number}
      */
-    readChar() {
+    readChar() : number {
         return this.readBits(8);
     }
 
     /**
      * Writes a boolean to the stream
-     * @param {Boolean} n
+     * @param {boolean} n
      */
-    writeBoolean(n) {
+    writeBoolean(n : boolean) : void {
         if(n === true) {
             this.writeByte(1);
         } else {
@@ -294,23 +316,23 @@ class BitStream {
      * Reads a boolean from the stream
      * @returns {boolean}
      */
-    readBoolean() {
-        return this.readByte() === true;
+    readBoolean() : boolean {
+        return Boolean(this.readByte());
     }
 
     /**
      * Writes a character to the stream
-     * @param {Number} n Character to write
+     * @param {number} n Character to write
      */
-    writeChar(n) {
+    writeChar(n : number) : void {
         this.writeByte(n);
     }
 
     /**
      * Reads a signed character from the stream
-     * @returns {Number}
+     * @returns {number}
      */
-    readSignedChar() {
+    readSignedChar() : number {
         if(this.readBit()) {
             return -this.readBits(7)
         }
@@ -319,44 +341,44 @@ class BitStream {
 
     /**
      * Reads an unsigned short from the stream
-     * @returns {Number}
+     * @returns {number}
      */
-    readShort() {
+    readShort() : number {
         return this.readByte() +
             (this.readByte() << 8);
     }
 
     /**
      * Writes an unsigned short to the stream
-     * @param {Number} n The number to write
+     * @param {number} n The number to write
      */
-    writeShort(n) {
+    writeShort(n : number) : void {
         this.writeByte(n & 0xff); //write the bottom byte
         this.writeByte((n & 0xff00) >>> 8); //write the top byte
     }
 
     /**
      * Writes an signed short to the stream
-     * @param {Number} n The number to write
+     * @param {number} n The number to write
      */
-    writeSignedShort(n) {
+    writeSignedShort(n : number) : void {
         this.writeByte(n & 0xff); //write the bottom byte
         this.writeSignedByte((n & 0xff00) >>> 8); //write the top byte
     }
 
     /**
      * Writes a compressed short to this stream
-     * @param {Number} n The short to compress
+     * @param {number} n The short to compress
      */
-    writeCompressedShort(n) {
+    writeCompressedShort(n : number) : void {
         this.writeCompressed(n, 2);
     }
 
     /**
      * Reads a signed short from the stream
-     * @returns {Number}
+     * @returns {number}
      */
-    readSignedShort() {
+    readSignedShort() : number {
         let firstByte = this.readByte();
         if(this.readBit()) {
             return -(firstByte & (this.readBits(7) << 7));
@@ -366,9 +388,9 @@ class BitStream {
 
     /**
      * Reads an unsigned long from the stream
-     * @returns {Number}
+     * @returns {number}
      */
-    readLong() {
+    readLong() : number {
         return this.readByte() +
             (this.readByte() << 8) +
             (this.readByte() << 16) +
@@ -377,41 +399,44 @@ class BitStream {
 
     /**
      * Writes an unsigned long to the stream
-     * @param {Number} n The number to write
+     * @param {number} n The number to write
      */
-    writeLong(n) {
+    writeLong(n : number) : void {
         this.writeShort(n & 0xffff); //write the lower two bytes...
         this.writeShort((n & 0xffff0000) >>> 16); //write the top two bytes
     }
 
     /**
      * Writes a compressed long to this stream
-     * @param {Number} n The long to compress and write to to this stream
+     * @param {number} n The long to compress and write to to this stream
      */
-    writeCompressedLong(n) {
+    writeCompressedLong(n : number) : void {
         this.writeCompressed(n, 4);
     }
 
     /**
      * Currently not implemented
+     * @todo Implement
      */
     readSignedLong() {
-        //lol no
+        throw "Not Implemented";
     }
 
     /**
      * Writes a signed long to the stream
+     * @param {number} n The signed long to write
      */
-    writeSignedLong(n) {
+    writeSignedLong(n : number) : void {
         this.writeShort(n & 0xffff); //write the lower two bytes...
         this.writeSignedShort((n & 0xffff0000) >>> 16); //write the top two bytes
     }
 
     /**
      * Reads an unsigned long long from the stream
-     * @returns {Number}
+     * @todo convert to using big int
+     * @returns {number}
      */
-    readLongLong() {
+    readLongLong() : number {
         return this.readByte() +
             (this.readByte() << 8) +
             (this.readByte() << 16) +
@@ -424,19 +449,20 @@ class BitStream {
 
     /**
      * Writes an unsigned long long to the stream
-     * @param {Number} top The top of the number
-     * @param {Number} bottom The bottom of the number
+     * @todo convert to using big int
+     * @param {number} top The top of the number
+     * @param {number} bottom The bottom of the number
      */
-    writeLongLong(top, bottom) {
+    writeLongLong(top : number, bottom : number) : void {
         this.writeLong(bottom);
         this.writeLong(top);
     }
 
     /**
      * Reads a float from the stream
-     * @returns {Number}
+     * @returns {number}
      */
-    readFloat() {
+    readFloat() : number {
         let mantissa = this.readShort();
         let exponent = this.readBit();
         mantissa += (this.readBits(7) << 16);
@@ -454,9 +480,9 @@ class BitStream {
 
     /**
      * Writes a float to the stream
-     * @param {Number} n
+     * @param {number} n
      */
-    writeFloat(n) {
+    writeFloat(n : number) : void {
         let sign = (n < 0);
         let exponent = Math.floor(Math.log2(Math.abs(n)));
         let mantissa = Math.ceil(((Math.abs(n) / Math.pow(2, exponent)) - 1) / 1.1920928955078125e-7); // 1.1920928955078125e-7 = 2^-23
@@ -474,7 +500,7 @@ class BitStream {
      * Writes a BitStream to this BitStream
      * @param {BitStream} bs
      */
-    writeBitStream(bs) {
+    writeBitStream(bs : BitStream) : void {
         for(let i = 0; i < bs.bits(); i++) {
             this.writeBit(bs.readBit() === 1);
         }
@@ -482,10 +508,10 @@ class BitStream {
 
     /**
      * Reads compressed data from the stream
-     * @param {Number} size The size of the data to read
+     * @param {number} size The size of the data to read
      * @returns {BitStream}
      */
-    readCompressed(size) {
+    readCompressed(size : number) : BitStream {
         let currentByte = size - 1;
         let ret = new BitStream();
 
@@ -521,10 +547,10 @@ class BitStream {
 
     /**
      *
-     * @param {Number} data The number to write
-     * @param {Number} size The number of bytes to write it in
+     * @param {number} data The number to write
+     * @param {number} size The number of bytes to write it in
      */
-    writeCompressed(data, size) {
+    writeCompressed(data : number, size : number) : void {
         let currentByte = size - 1;
         let mask = [
             0xFF,
@@ -562,10 +588,10 @@ class BitStream {
 
     /**
      * Reads a string from the stream
-     * @param {Number} [size]
+     * @param {number} [size]
      * @returns {string}
      */
-    readString(size) {
+    readString(size : number) : string {
         if(size === undefined) size = 33;
         let text = "";
 
@@ -577,10 +603,10 @@ class BitStream {
 
     /**
      *
-     * @param {String} string
-     * @param {Number} [size]
+     * @param {string} string
+     * @param {number} [size]
      */
-    writeString(string, size) {
+    writeString(string : string, size : number) : void {
         if(size === undefined) {
             size = 33;
         }
@@ -595,10 +621,10 @@ class BitStream {
 
     /**
      *
-     * @param {Number} [size]
-     * @returns {String}
+     * @param {number} [size]
+     * @returns {string}
      */
-    readWString(size) {
+    readWString(size : number) : string {
         if(size === undefined) {
             size = 33;
         }
@@ -608,8 +634,7 @@ class BitStream {
         write = temp !== 0;
         for(let i = 0; i < size - 1; i ++) {
             if(write) {
-                temp = String.fromCharCode(temp);
-                text += temp;
+                text += String.fromCharCode(temp);
                 temp = this.readShort();
                 write = temp !== 0;
             } else {
@@ -621,10 +646,10 @@ class BitStream {
 
     /**
      *
-     * @param {String} string
-     * @param {Number} [size]
+     * @param {string} string
+     * @param {number} [size]
      */
-    writeWString(string, size) {
+    writeWString(string : string, size : number) : void {
         if(size === undefined) size = 33;
         while(string.length < size) {
             string += '\0';
@@ -639,20 +664,20 @@ class BitStream {
     /**
      * Aligns the current reading bit to the next available byte
      */
-    alignRead() {
-        if(this._rBitPos !== 7) {
-            this._rBitPos = 7;
-            this._rBytePos ++;
+    alignRead() : void {
+        if(this.#readBitPosition !== 7) {
+            this.#readBitPosition = 7;
+            this.#readBytePosition ++;
         }
     }
 
     /**
      * Aligns the current writing bit to the next available byte
      */
-    alignWrite() {
-        if(this._wBitPos !== 7) {
-            this._wBitPos = 7;
-            this._wBytePos ++;
+    alignWrite() : void {
+        if(this.#writeBitPosition !== 7) {
+            this.#writeBitPosition = 7;
+            this.#writeBytePosition ++;
         }
     }
 
@@ -660,16 +685,16 @@ class BitStream {
      * Adds a BitStream to the end of this BitStream
      * @param {BitStream} bs The BitStream to add on
      */
-    concat(bs) {
-        this.data = Buffer.concat([this.data, bs.data]);
-        this._byteCount = this.data.length;
+    concat(bs : BitStream) : void {
+        this.#data = Buffer.concat([this.#data, bs.#data]);
+        this.#byteCount = this.#data.length;
     }
 
     /**
      * Gets the binary string representation of this BitStream
-     * @returns {String}
+     * @returns {string}
      */
-    toBinaryString() {
+    toBinaryString() : string {
         let output = "";
         let temp = [
             '0000',
@@ -690,24 +715,24 @@ class BitStream {
             '1111'
         ];
 
-        for(let i = 0; i < this._byteCount; i ++) {
-            let byte = this.data.readUInt8(i);
+        for(let i = 0; i < this.#byteCount; i ++) {
+            let byte = this.#data.readUInt8(i);
             let partone = (byte & 0xF0) >> 4;
             let parttwo = byte & 0x0F;
 
-            if(i === this._rBytePos) {
+            if(i === this.#readBytePosition) {
                 for(let j = 7; j >= 0; j--) {
-                    let bit = (byte & this._mask[j]) >> j;
-                    if(j === this._rBitPos) {
+                    let bit = (byte & this.#mask[j]) >> j;
+                    if(j === this.#readBitPosition) {
                         output += " -> "
                     }
                     output += bit;
                 }
                 output += ' ';
-            } else if(i === this._wBytePos) {
+            } else if(i === this.#writeBytePosition) {
                 for(let j = 7; j >= 0; j--) {
-                    let bit = (byte & this._mask[j]) >> j;
-                    if(j === this._wBitPos) {
+                    let bit = (byte & this.#mask[j]) >> j;
+                    if(j === this.#writeBitPosition) {
                         output += " <- "
                     }
                     output += bit;
@@ -724,8 +749,9 @@ class BitStream {
 
     /**
      * Returns the Hex representation of this BitStream
+     * @return {string}
      */
-    toHexString() {
+    toHexString() : string {
         let output = "";
         let temp = [
             '0',
@@ -746,8 +772,8 @@ class BitStream {
             'F'
         ];
 
-        for(let i = 0; i < this._byteCount; i ++) {
-            let byte = this.data.readUInt8(i);
+        for(let i = 0; i < this.#byteCount; i ++) {
+            let byte = this.#data.readUInt8(i);
             let partone = (byte & 0xF0) >> 4;
             let parttwo = byte & 0x0F;
 
@@ -761,16 +787,16 @@ class BitStream {
      * @param {String} filename
      */
     toFile(filename) {
-        return writeFile(filename, this.data);
+        return writeFile(filename, this.#data);
     }
 }
 
 /**
  * Turns Unicode into a number
- * @param {String} string
- * @returns {Number}
+ * @param {string} string
+ * @returns {number}
  */
-function ord (string) {
+function ord (string : string) : number {
     //  discuss at: http://locutus.io/php/ord/
     // original by: Kevin van Zonneveld (http://kvz.io)
     // bugfixed by: Onno Marsman (https://twitter.com/onnomarsman)
@@ -806,5 +832,3 @@ function ord (string) {
     }
     return code
 }
-
-module.exports = BitStream;

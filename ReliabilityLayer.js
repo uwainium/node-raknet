@@ -1,7 +1,7 @@
 // TODO: At some point in my poor future, I will have to implement ack packets
 
-const RangeList = require('./Structures/RangeList.js').RangeList;
-const BitStream = require('./BitStream.js');
+const RangeList = require('./structures/RangeList.js').RangeList;
+const BitStream = require('./structures/BitStream.js');
 const assert = require('assert');
 
 /**
