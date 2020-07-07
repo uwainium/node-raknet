@@ -1,14 +1,10 @@
 // TODO: At some point in my poor future, I will have to implement ack packets
 
-const RangeList = require('./Structures/RangeList.js').RangeList;
-const BitStream = require('./BitStream.js');
-const assert = require('assert');
+import {RangeList}  from './structures/RangeList.js';
+import BitStream from './structures/BitStream.js';
+import * as assert from 'assert';
 
-/**
- * An enum for determining what type of reliability a packet was sent with.
- * @type {{UNRELIABLE: number, UNRELIABLE_SEQUENCED: number, RELIABLE: number, RELIABLE_ORDERED: number, RELIABLE_SEQUENCED: number}}
- */
-const Reliability = {
+export const Reliability = {
     'UNRELIABLE': 0,
     'UNRELIABLE_SEQUENCED': 1,
     'RELIABLE': 2,
@@ -22,35 +18,57 @@ const UDP_HEADER_SIZE = 28;
 /**
  * The ReliabilityLayer class used for sending and receiving data to a single client.
  */
-class ReliabilityLayer {
+export class ReliabilityLayer {
+    #server;
+    #connection;
+
+    #srrt;
+    #rttVar;
+    #rto;
+    #last;
+    #remoteSystemTime;
+    #resends;
+    #acks;
+    #queue;
+    #sequencedReadIndex;
+    #sequencedWriteIndex;
+    #orderedReadIndex;
+    #orderedWriteIndex;
+    #outOfOrderPackets;
+    #sends;
+    #congestionWindow;
+    #packetsSent;
+    #sendMessageNumberIndex;
+    #interval;
+
     /**
      * Constructs a new instance of ReliabilityLayer and set default values for the object
      * @param server
      * @param address
      */
     constructor(server, address) {
-        this.server = server;
-        this.connection = address;
+        this.#server = server;
+        this.#connection = address;
 
-        this.srrt = undefined;
-        this.rttVar = undefined;
-        this.rto = 1;
-        this.last = Date.now();
-        this.remoteSystemTime = 0;
-        this.resends = []; //i assume to keep track of what messages needed to be resent?
-        this.acks = new RangeList();
-        this.queue = [];
-        this.sequencedReadIndex = 0;
-        this.sequencedWriteIndex = 0;
-        this.orderedReadIndex = 0;
-        this.orderedWriteIndex = 0;
-        this.outOfOrderPackets = [];
-        this.sends = [];
-        this.congestionWindow = 0;
-        this.packetsSent = 0;
-        this.sendMessageNumberIndex = 0;
+        this.#srrt = undefined;
+        this.#rttVar = undefined;
+        this.#rto = 1;
+        this.#last = Date.now();
+        this.#remoteSystemTime = 0;
+        this.#resends = []; //i assume to keep track of what messages needed to be resent?
+        this.#acks = new RangeList();
+        this.#queue = [];
+        this.#sequencedReadIndex = 0;
+        this.#sequencedWriteIndex = 0;
+        this.#orderedReadIndex = 0;
+        this.#orderedWriteIndex = 0;
+        this.#outOfOrderPackets = [];
+        this.#sends = [];
+        this.#congestionWindow = 0;
+        this.#packetsSent = 0;
+        this.#sendMessageNumberIndex = 0;
         let layer = this;
-        this.interval = setInterval(function () {
+        this.#interval = setInterval(function () {
             layer.sendLoop();
         }, 30);
     }
@@ -59,7 +77,7 @@ class ReliabilityLayer {
      * Handles a new packet when we receive one
      * @param {BitStream} data The packet
      */
-    * handle_data(data) {
+    * handle_data(data) : Generator<BitStream> {
         if (this.handle_data_header(data)) yield undefined;
         yield* this.parse_packets(data);
     }
@@ -72,20 +90,21 @@ class ReliabilityLayer {
     handle_data_header(data) {
         if (data.readBit()) { //if there are acks...
             let yeOldenTime = data.readLong();
-            let rtt = (Date.now() - this.last) / 1000 - yeOldenTime / 1000;
-            this.last = Date.now();
-            if (this.srrt === undefined) {
-                this.srrt = rtt;
-                this.rttVar = rtt / 2;
+            let rtt = (Date.now() - this.#last) / 1000 - yeOldenTime / 1000;
+            this.#last = Date.now();
+            if (this.#srrt === undefined) {
+                this.#srrt = rtt;
+                this.#rttVar = rtt / 2;
             } else {
                 let alpha = 0.125;
                 let beta = 0.25;
-                this.rttVar = (1 - beta) * this.rttVar + beta * Math.abs(this.srrt - rtt);
-                this.srrt = (1 - alpha) * this.srrt + alpha * rtt;
+                this.#rttVar = (1 - beta) * this.#rttVar + beta * Math.abs(this.#srrt - rtt);
+                this.#srrt = (1 - alpha) * this.#srrt + alpha * rtt;
             }
-            this.rto = Math.max(1, this.srrt + 4 * this.rttVar);
+            this.#rto = Math.max(1, this.#srrt + 4 * this.#rttVar);
 
-            let acks = new RangeList(data);
+            let acks = new RangeList();
+            acks.deserialize(data);
             for (let i = 0; i < acks.toArray().length; i++) {
 
             }
@@ -96,7 +115,7 @@ class ReliabilityLayer {
             return true;
         }
         if (data.readBit()) {
-            this.remoteSystemTime = data.readLong();
+            this.#remoteSystemTime = data.readLong();
         }
         return false;
     }
@@ -105,8 +124,9 @@ class ReliabilityLayer {
      * Parses the rest of the packet out so we can handle it later
      * TODO: Find out why I keep on reaching the end of the stream
      * @param {BitStream} data The packet
+     * @yields {GBitStream}
      */
-    * parse_packets(data) {
+    * parse_packets(data : BitStream) : Generator<BitStream> {
         while (!data.allRead()) {
 
             let messageNumber = data.readLong();
@@ -131,8 +151,8 @@ class ReliabilityLayer {
                 splitPacketIndex = data.readCompressed(4).readLong();
                 splitPacketCount = data.readCompressed(4).readLong();
 
-                if (this.queue[splitPacketId] === undefined) {
-                    this.queue[splitPacketId] = [splitPacketCount];
+                if (this.#queue[splitPacketId] === undefined) {
+                    this.#queue[splitPacketId] = [splitPacketCount];
                 }
             }
 
@@ -147,15 +167,15 @@ class ReliabilityLayer {
 
 
             if (reliability === Reliability.RELIABLE || reliability === Reliability.RELIABLE_ORDERED) {
-                this.acks.add(messageNumber);
+                this.#acks.add(messageNumber);
             }
 
             if (isSplit) {
                 if (splitPacketId !== undefined && splitPacketIndex !== undefined) {
-                    this.queue[splitPacketId][splitPacketIndex] = packet;
+                    this.#queue[splitPacketId][splitPacketIndex] = packet;
                     let ready = true;
-                    for (let i = 0; i < this.queue[splitPacketId].length; i++) {
-                        if (this.queue[splitPacketId][i] === undefined) {
+                    for (let i = 0; i < this.#queue[splitPacketId].length; i++) {
+                        if (this.#queue[splitPacketId][i] === undefined) {
                             ready = false;
                             break;
                         }
@@ -163,7 +183,7 @@ class ReliabilityLayer {
                     if (ready) {
                         //concatenate all the split packets together
                         packet = new BitStream();
-                        packet.concat(this.queue[splitPacketId]);
+                        packet.concat(this.#queue[splitPacketId]);
                     } else {
                         continue;
                     }
@@ -171,8 +191,8 @@ class ReliabilityLayer {
             }
             if (reliability === Reliability.UNRELIABLE_SEQUENCED) {
                 if (orderingIndex !== undefined) {
-                    if (orderingIndex >= this.sequencedReadIndex) {
-                        this.sequencedReadIndex = orderingIndex + 1;
+                    if (orderingIndex >= this.#sequencedReadIndex) {
+                        this.#sequencedReadIndex = orderingIndex + 1;
                     }
                     else {
                         continue;
@@ -181,17 +201,17 @@ class ReliabilityLayer {
             } else if (reliability === Reliability.RELIABLE_ORDERED) {
                 if (orderingIndex !== undefined && orderingChannel !== undefined) {
 
-                    if (orderingIndex === this.orderedReadIndex) {
-                        this.orderedReadIndex++;
+                    if (orderingIndex === this.#orderedReadIndex) {
+                        this.#orderedReadIndex++;
                         let ord = orderingIndex + 1;
-                        for (let i = ord; i < this.orderedReadIndex; i++) {
+                        for (let i = ord; i < this.#orderedReadIndex; i++) {
 
                         }
-                    } else if (orderingIndex < this.orderedReadIndex) {
+                    } else if (orderingIndex < this.#orderedReadIndex) {
                         continue;
                     } else {
                         // We can't release this packet because we are waiting for an earlier one?
-                        this.outOfOrderPackets[orderingIndex] = packet;
+                        this.#outOfOrderPackets[orderingIndex] = packet;
                     }
                 }
             }
@@ -209,11 +229,11 @@ class ReliabilityLayer {
         return new Promise((resolve, reject) => {
             let orderingIndex;
             if (reliability === Reliability.UNRELIABLE_SEQUENCED) {
-                orderingIndex = this.sequencedWriteIndex;
-                this.sequencedWriteIndex++;
+                orderingIndex = this.#sequencedWriteIndex;
+                this.#sequencedWriteIndex++;
             } else if (reliability === Reliability.RELIABLE_ORDERED) {
-                orderingIndex = this.orderedWriteIndex;
-                this.orderedWriteIndex++;
+                orderingIndex = this.#orderedWriteIndex;
+                this.#orderedWriteIndex++;
             } else {
                 orderingIndex = undefined;
             }
@@ -222,7 +242,7 @@ class ReliabilityLayer {
                 // TODO: Add a way to split packets and iterate through them to add them to the queue
                 console.info("This packet needs to be split up!");
             } else {
-                this.sends.push({
+                this.#sends.push({
                     'packet': packet,
                     'reliability': reliability,
                     'orderingIndex': orderingIndex,
@@ -239,25 +259,25 @@ class ReliabilityLayer {
      */
     sendLoop() {
 
-        while (this.sends.length > 0) {
+        while (this.#sends.length > 0) {
             // TODO: Need to actually do resends for my own packets. This is related
             // if (this.packetsSent > this.congestionWindow) break;
-            let packet = this.sends.pop();
+            let packet = this.#sends.pop();
 
-            this.packetsSent++;
-            let index = this.sendMessageNumberIndex;
-            this.sendMessageNumberIndex++;
+            this.#packetsSent++;
+            let index = this.#sendMessageNumberIndex;
+            this.#sendMessageNumberIndex++;
 
             this.sendMessage(packet.packet, index, packet.reliability, packet.orderingIndex, undefined, packet.callback);
         }
 
-        if(!this.acks.isEmpty()) {
+        if(!this.#acks.isEmpty()) {
             let send = new BitStream();
             send.writeBit(true);
-            send.writeLong(this.remoteSystemTime);
-            send.writeBitStream(this.acks.serialize());
-            this.acks.empty();
-            this.server.send(send.data, this.connection.port, this.connection.address);
+            send.writeLong(this.#remoteSystemTime);
+            send.writeBitStream(this.#acks.serialize());
+            this.#acks.empty();
+            this.#server.send(send.data, this.#connection.port, this.#connection.address);
         }
     }
 
@@ -272,11 +292,11 @@ class ReliabilityLayer {
      */
     sendMessage(data, messageNumber, reliability, index, splitPacketInfo, callback) {
         let send = new BitStream();
-        send.writeBit(!this.acks.isEmpty() && false);
-        if (!this.acks.isEmpty() && false) {
-            send.writeLong(this.remoteSystemTime);
-            send.writeBitStream(this.acks.serialize());
-            this.acks.empty();
+        send.writeBit(!this.#acks.isEmpty() && false);
+        if (!this.#acks.isEmpty() && false) {
+            send.writeLong(this.#remoteSystemTime);
+            send.writeBitStream(this.#acks.serialize());
+            this.#acks.empty();
         }
 
         assert(ReliabilityLayer.packetHeaderLength(reliability, splitPacketInfo !== undefined) + data.length() <= MTU_SIZE - UDP_HEADER_SIZE, 'Packet sent was too large!');
@@ -284,7 +304,7 @@ class ReliabilityLayer {
         // TODO: Actually keep track of system time
         let hasRemoteSystemTime = true;
         send.writeBit(hasRemoteSystemTime);
-        send.writeLong(this.remoteSystemTime);
+        send.writeLong(this.#remoteSystemTime);
 
         // Write the message "index"
         send.writeLong(messageNumber);
@@ -313,7 +333,7 @@ class ReliabilityLayer {
             send.writeByte(data.readByte());
         }
 
-        this.server.send(send.data, this.connection.port, this.connection.address, () => {
+        this.#server.send(send.data, this.#connection.port, this.#connection.address, () => {
             callback();
         }); // Sends actual data to client here
     }
@@ -343,5 +363,3 @@ class ReliabilityLayer {
         return Math.ceil(length / 8);
     }
 }
-
-module.exports = {ReliabilityLayer, Reliability};

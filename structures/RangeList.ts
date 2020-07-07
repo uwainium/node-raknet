@@ -1,32 +1,30 @@
-const BitStream = require('../BitStream.js');
+import BitStream from './BitStream';
 
-/**
- * A DataStructure used for keeping track of acks
- */
-class RangeList {
+export class RangeList {
+    ranges: Array<RangeListRange>;
+
     /**
      * Constructs a new RangeList and set the default values
+     */
+    constructor() {
+        this.ranges = [];
+    }
+
+    /**
+     *
      * @param {BitStream} data
      */
-    constructor(data = undefined) {
-        /**
-         *
-         * @type {Array<Range>}
-         */
-        this.ranges = [];
-
-        if(data !== undefined) {
-            let count = data.readCompressed(2);
-            let maxEqualToMin = false;
-            for (let i = 0; i < count; i ++) {
-                maxEqualToMin = data.readBit();
-                let min = data.readLong();
-                let max = min;
-                if(!maxEqualToMin) {
-                    max = data.readLong();
-                }
-                this.ranges.push(new Range(min, max));
+    deserialize(data : BitStream) : void {
+        let count = data.readCompressed(2).readShort();
+        let maxEqualToMin = false;
+        for (let i = 0; i < count; i ++) {
+            maxEqualToMin = data.readBit() == 1;
+            let min = data.readLong();
+            let max = min;
+            if(!maxEqualToMin) {
+                max = data.readLong();
             }
+            this.ranges.push(new RangeListRange(min, max));
         }
     }
 
@@ -34,7 +32,7 @@ class RangeList {
      * Serializes this Rangelist to a stream
      * @returns {BitStream}
      */
-    serialize() {
+    serialize() : BitStream {
         let stream = new BitStream();
         stream.writeCompressedShort(this.ranges.length);
         for(let i = 0; i < this.ranges.length; i++) {
@@ -51,22 +49,22 @@ class RangeList {
      * Returns if this Rangelist is empty or not
      * @returns {boolean}
      */
-    isEmpty() {
+    isEmpty() : boolean {
         return this.ranges.length === 0;
     }
 
     /**
      * Clears this Rangelist
      */
-    empty() {
+    empty() : void {
         this.ranges = [];
     }
 
     /**
      * Adds a number to this Ranglist
-     * @param {Number} n
+     * @param {number} n
      */
-    add(n) {
+    add(n:number) : void {
         for(let i = 0; i < this.ranges.length; i ++) {
             let range = this.ranges[i];
 
@@ -91,13 +89,13 @@ class RangeList {
         }
 
         // Since we got here, we must go ahead and add a new range
-        this.ranges.push(new Range(n, n));
+        this.ranges.push(new RangeListRange(n, n));
     }
 
     /**
      * Updates ranges if there is an overlap and merges them where needed
      */
-    updateOverlap() {
+    updateOverlap() : void {
         for(let i = 0; i < this.ranges.length; i ++) {
             let range = this.ranges[i];
             for(let j = 0; j < this.ranges.length; j ++) {
@@ -106,7 +104,7 @@ class RangeList {
 
                 if(range.max === nextRange.min - 1) {
                     //they are right next to each other and need to be merged
-                    this.ranges.push(new Range(range.min, nextRange.max));
+                    this.ranges.push(new RangeListRange(range.min, nextRange.max));
                     this.ranges.splice(i, 1);
 
                     // Logic for removing j after I has been removed
@@ -125,7 +123,7 @@ class RangeList {
      * Converts this object into an Array
      * @returns {Array<Number>}
      */
-    toArray() {
+    toArray() : Array<number> {
         let ret = [];
         for(let i = 0; i < this.ranges.length; i ++) {
             ret.concat(this.ranges[i].toArray()).sort(function(a,b) {
@@ -136,27 +134,27 @@ class RangeList {
     }
 }
 
-/**
- * The internal class RangeList uses to hold its ranges
- */
-class Range {
+export class RangeListRange {
+    min: number;
+    max: number;
+
     /**
      * Constructs a new Range from the values
-     * @param {Number} min
-     * @param {Number} max
+     * @param {number} min
+     * @param {number} max
      */
-    constructor(min, max) {
+    constructor(min:number, max:number) {
         this.min = min;
         this.max = max;
     }
 
     /**
      * Returns an array
-     * @returns {Array<Number>}
+     * @returns {Array<number>}
      */
     toArray() {
         let ret = [];
-        for(let i = this.min; i <= this.max; i++) {
+        for(let i:number = this.min; i <= this.max; i++) {
             ret.push(i);
         }
         return ret;
@@ -164,30 +162,28 @@ class Range {
 
     /**
      * Determines if this number is already within range
-     * @param {Number} n
+     * @param {number} n
      * @returns {boolean}
      */
-    isInRange(n) {
+    isInRange(n:number) {
         return n >= this.min && n <= this.max;
     }
 
     /**
      *
-     * @param {Number} n
+     * @param {number} n
      * @returns {boolean}
      */
-    canExtendMax(n) {
+    canExtendMax(n:number) {
         return n === this.max + 1;
     }
 
     /**
      *
-     * @param {Number} n
+     * @param {number} n
      * @returns {boolean}
      */
-    canExtendMin(n) {
+    canExtendMin(n:number) {
         return n === this.min - 1;
     }
 }
-
-module.exports = {RangeList, Range};

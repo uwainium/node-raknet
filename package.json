@@ -2,9 +2,10 @@
   "name": "node-raknet",
   "version": "1.1.6",
   "description": "A raknet library for node",
-  "main": "RakServer.js",
+  "main": "RakServer.ts",
   "scripts": {
-    "test": "nyc mocha"
+    "test": "nyc mocha",
+    "build": "tsc"
   },
   "repository": {
     "type": "git",
@@ -20,7 +21,11 @@
   },
   "homepage": "https://github.com/RaineBannister/node-raknet#readme",
   "devDependencies": {
+    "@types/node": "^14.0.13",
     "mocha": "^5.2.0",
     "nyc": "^15.0.0"
+  },
+  "dependencies": {
+    "typescript": "^3.9.5"
   }
 }
