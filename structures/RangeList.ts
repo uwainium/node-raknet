@@ -1,4 +1,4 @@
-import {BitStream} from './BitStream';
+import BitStream from './BitStream';
 
 export class RangeList {
     ranges: Array<RangeListRange>;

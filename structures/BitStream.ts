@@ -7,7 +7,7 @@ const writeFile = promisify(fs.writeFile);
 /**
  * The BitStream class used for reading data from a Buffer.
  */
-export class BitStream {
+export default class BitStream {
     #data: Buffer;
     #byteCount: number;
     

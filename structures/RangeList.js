@@ -5,26 +5,25 @@ const BitStream_1 = require("./BitStream");
 class RangeList {
     /**
      * Constructs a new RangeList and set the default values
+     */
+    constructor() {
+        this.ranges = [];
+    }
+    /**
+     *
      * @param {BitStream} data
      */
-    constructor(data = undefined) {
-        /**
-         *
-         * @type {Array<Range>}
-         */
-        this.ranges = [];
-        if (data !== undefined) {
-            let count = data.readCompressed(2).readShort();
-            let maxEqualToMin = false;
-            for (let i = 0; i < count; i++) {
-                maxEqualToMin = data.readBit() == 1;
-                let min = data.readLong();
-                let max = min;
-                if (!maxEqualToMin) {
-                    max = data.readLong();
-                }
-                this.ranges.push(new RangeListRange(min, max));
+    deserialize(data) {
+        let count = data.readCompressed(2).readShort();
+        let maxEqualToMin = false;
+        for (let i = 0; i < count; i++) {
+            maxEqualToMin = data.readBit() == 1;
+            let min = data.readLong();
+            let max = min;
+            if (!maxEqualToMin) {
+                max = data.readLong();
             }
+            this.ranges.push(new RangeListRange(min, max));
         }
     }
     /**
@@ -32,7 +31,7 @@ class RangeList {
      * @returns {BitStream}
      */
     serialize() {
-        let stream = new BitStream_1.BitStream();
+        let stream = new BitStream_1.default();
         stream.writeCompressedShort(this.ranges.length);
         for (let i = 0; i < this.ranges.length; i++) {
             stream.writeBit(this.ranges[i].min === this.ranges[i].max);
@@ -58,7 +57,7 @@ class RangeList {
     }
     /**
      * Adds a number to this Ranglist
-     * @param {Number} n
+     * @param {number} n
      */
     add(n) {
         for (let i = 0; i < this.ranges.length; i++) {
