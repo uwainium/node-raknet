@@ -1,11 +1,12 @@
 {
   "name": "node-raknet",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A raknet library for node",
   "main": "RakServer.ts",
   "scripts": {
     "test": "nyc mocha",
-    "build": "tsc"
+    "build": "tsc",
+    "prepare": "npm run build"
   },
   "repository": {
     "type": "git",
