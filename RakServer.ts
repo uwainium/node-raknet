@@ -135,6 +135,13 @@ class RakServer extends EventEmitter {
     getClient(ip : string) : ReliabilityLayer {
         return this.#connections[ip];
     }
+
+    /**
+     * @returns {data.Socket}
+     */
+    get server() : data.Socket {
+        return this.#server;
+    }
 }
 
 module.exports = RakServer;
