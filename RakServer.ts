@@ -4,7 +4,7 @@ import {ReliabilityLayer} from './ReliabilityLayer.js';
 import * as data from 'dgram';
 const EventEmitter = require('events');
 
-class RakServer extends EventEmitter {
+export default class RakServer extends EventEmitter {
     #ip : string;
     #port : number;
     readonly #connections : Array<ReliabilityLayer>;
@@ -143,5 +143,3 @@ class RakServer extends EventEmitter {
         return this.#server;
     }
 }
-
-module.exports = RakServer;
