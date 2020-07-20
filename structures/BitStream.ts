@@ -591,8 +591,7 @@ export default class BitStream {
      * @param {number} [size]
      * @returns {string}
      */
-    readString(size : number) : string {
-        if(size === undefined) size = 33;
+    readString(size : number = 33) : string {
         let text = "";
 
         for(let i = 0; i < size; i++) {
