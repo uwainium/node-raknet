@@ -433,29 +433,26 @@ export default class BitStream {
 
     /**
      * Reads an unsigned long long from the stream
-     * @todo convert to using big int
-     * @returns {number}
+     * @returns {BigInt}
      */
-    readLongLong() : number {
-        return this.readByte() +
+    readLongLong() : bigint {
+        return BigInt(this.readByte() +
             (this.readByte() << 8) +
             (this.readByte() << 16) +
             (this.readByte() * 16777216) +
             (this.readByte() * 4294967296) +
             (this.readByte() * 1099511627776) +
             (this.readByte() * 281474976710656) +
-            (this.readByte() * 72057594037927936);
+            (this.readByte() * 72057594037927936));
     }
 
     /**
      * Writes an unsigned long long to the stream
-     * @todo convert to using big int
-     * @param {number} top The top of the number
-     * @param {number} bottom The bottom of the number
+     * @param {BigInt} n The top of the number
      */
-    writeLongLong(top : number, bottom : number) : void {
-        this.writeLong(bottom);
-        this.writeLong(top);
+    writeLongLong(n : bigint) : void {
+        this.writeLong(Number(n & 0xffffffffn));
+        this.writeLong(Number((n & 0xffffffff00000000n) >> 32n));
     }
 
     /**

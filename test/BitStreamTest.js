@@ -1,5 +1,5 @@
 const assert = require('assert');
-const {BitStream} = require('../structures/BitStream');
+const BitStream = require('../structures/BitStream').default;
 
 describe('BitStream', () => {
     describe('length', () => {
@@ -115,7 +115,7 @@ describe('BitStream', () => {
     describe('writeLongLong', () => {
         it('should write a long long', () => {
             let stream = new BitStream(Buffer.alloc(8));
-            stream.writeLongLong(0xAAAAAAAA, 0xBBBBBBBB);
+            stream.writeLongLong(0xAAAAAAAABBBBBBBBn);
             assert.strictEqual(stream.data.readUInt8(0), 0xBB);
             assert.strictEqual(stream.data.readUInt8(1), 0xBB);
             assert.strictEqual(stream.data.readUInt8(2), 0xBB);
@@ -124,6 +124,17 @@ describe('BitStream', () => {
             assert.strictEqual(stream.data.readUInt8(5), 0xAA);
             assert.strictEqual(stream.data.readUInt8(6), 0xAA);
             assert.strictEqual(stream.data.readUInt8(7), 0xAA);
+
+            stream = new BitStream(Buffer.alloc(8));
+            stream.writeLongLong(0xFAAAAAAABBBCBCBCn);
+            assert.strictEqual(stream.data.readUInt8(0), 0xBC);
+            assert.strictEqual(stream.data.readUInt8(1), 0xBC);
+            assert.strictEqual(stream.data.readUInt8(2), 0xBC);
+            assert.strictEqual(stream.data.readUInt8(3), 0xBB);
+            assert.strictEqual(stream.data.readUInt8(4), 0xAA);
+            assert.strictEqual(stream.data.readUInt8(5), 0xAA);
+            assert.strictEqual(stream.data.readUInt8(6), 0xAA);
+            assert.strictEqual(stream.data.readUInt8(7), 0xFA);
         });
     });
     describe('writeFloat', () => {
