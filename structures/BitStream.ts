@@ -605,10 +605,7 @@ export default class BitStream {
      * @param {string} string
      * @param {number} [size]
      */
-    writeString(string : string, size : number) : void {
-        if(size === undefined) {
-            size = 33;
-        }
+    writeString(string : string, size : number = 33) : void {
         while(string.length < size) {
             string += '\0';
         }
@@ -623,10 +620,7 @@ export default class BitStream {
      * @param {number} [size]
      * @returns {string}
      */
-    readWString(size : number) : string {
-        if(size === undefined) {
-            size = 33;
-        }
+    readWString(size : number = 33) : string {
         let write = true;
         let text = "";
         let temp = this.readShort();
@@ -648,8 +642,7 @@ export default class BitStream {
      * @param {string} string
      * @param {number} [size]
      */
-    writeWString(string : string, size : number) : void {
-        if(size === undefined) size = 33;
+    writeWString(string : string, size : number = 33) : void {
         while(string.length < size) {
             string += '\0';
         }
