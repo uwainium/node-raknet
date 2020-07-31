@@ -7,7 +7,7 @@ import RakMessages from "./RakMessages";
 export default class RakClient extends events.EventEmitter {
     #ip : string;
     #port : number;
-    readonly #connection : ReliabilityLayer;
+    #connection : ReliabilityLayer;
     #password : string;
     readonly #client : data.Socket;
     #startTime : number;
@@ -40,7 +40,11 @@ export default class RakClient extends events.EventEmitter {
             }
         });
 
-        this.#connection = new ReliabilityLayer(this.#client, {address: this.#ip, port: this.#port});
+        // initiate connection
+        let stream = new BitStream();
+        stream.writeByte(RakMessages.ID_OPEN_CONNECTION_REQUEST);
+        stream.writeByte(0);
+        this.#client.send(stream.data, this.#port, this.#ip);
     }
 
     onError(error) {
@@ -48,20 +52,29 @@ export default class RakClient extends events.EventEmitter {
     }
 
     onMessage(data, senderInfo) {
-        const packets = this.#connection.handle_data(data);
-        let finished = false;
+        if(data.length == 2) {
+            let messageId = data.readByte();
 
-        while(!finished) {
-            let next = packets.next();
-            if(next.value !== undefined) {
-                let packet = next.value;
-                this.onPacket(packet, senderInfo);
+            if(messageId === RakMessages.ID_OPEN_CONNECTION_REPLY) {
+                this.#connection = new ReliabilityLayer(this.#client, senderInfo);
             }
+        } else {
+            const packets = this.#connection.handle_data(data);
+            let finished = false;
 
-            if(next.done) {
-                finished = true;
+            while(!finished) {
+                let next = packets.next();
+                if(next.value !== undefined) {
+                    let packet = next.value;
+                    this.onPacket(packet, senderInfo);
+                }
+
+                if(next.done) {
+                    finished = true;
+                }
             }
         }
+
     }
 
     onPacket(packet : BitStream, senderInfo : Object) : void {
