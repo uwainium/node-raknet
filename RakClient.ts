@@ -52,7 +52,7 @@ export default class RakClient extends events.EventEmitter {
     }
 
     onMessage(data, senderInfo) {
-        if(data.length == 2) {
+        if(data.length() == 1) {
             let messageId = data.readByte();
 
             if(messageId === RakMessages.ID_OPEN_CONNECTION_REPLY) {
