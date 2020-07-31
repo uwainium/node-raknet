@@ -2,9 +2,9 @@ import RakMessages from './RakMessages';
 import BitStream from './structures/BitStream.js';
 import {ReliabilityLayer} from './ReliabilityLayer.js';
 import * as data from 'dgram';
-const EventEmitter = require('events');
+import * as events from 'events';
 
-export default class RakServer extends EventEmitter {
+export default class RakServer extends events.EventEmitter {
     #ip : string;
     #port : number;
     readonly #connections : Array<ReliabilityLayer>;
@@ -47,8 +47,6 @@ export default class RakServer extends EventEmitter {
                 console.warn(e.stack);
             }
         });
-
-        let temp = this;
 
         this.#server.on('listening', () => {
             this.onListening();
