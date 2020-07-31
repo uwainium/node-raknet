@@ -140,4 +140,12 @@ export default class RakServer extends events.EventEmitter {
     get server() : data.Socket {
         return this.#server;
     }
+
+    get port() : number {
+        return this.#port;
+    }
+
+    get ip() : string {
+        return this.#ip;
+    }
 }
