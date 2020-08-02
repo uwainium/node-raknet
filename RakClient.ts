@@ -40,11 +40,7 @@ export default class RakClient extends events.EventEmitter {
             }
         });
 
-        // initiate connection
-        let stream = new BitStream();
-        stream.writeByte(RakMessages.ID_OPEN_CONNECTION_REQUEST);
-        stream.writeByte(0);
-        this.#client.send(stream.data, this.#port, this.#ip);
+
     }
 
     onError(error) {
@@ -92,5 +88,13 @@ export default class RakClient extends events.EventEmitter {
 
     get client() {
         return this.#client;
+    }
+
+    get port() : number {
+        return this.#port;
+    }
+
+    get ip() : string {
+        return this.#ip;
     }
 }
