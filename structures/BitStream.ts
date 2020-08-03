@@ -532,7 +532,7 @@ export default class BitStream {
         let b = this.readBit();
 
         if(b) {
-            ret.writeByte(this.readBits(4) << 4 && 0xF0);
+            ret.writeByte(this.readBits(4));
         } else {
             ret.writeByte(this.readByte());
         }
@@ -577,7 +577,7 @@ export default class BitStream {
         let zero = (data & 0xF0) === 0;
         this.writeBit(zero);
         if(zero) {
-            this.writeBits(data & 0xF0 >> 4, 4);
+            this.writeBits(data & 0x0F, 4);
         } else {
             this.writeByte(data & 0xFF);
         }
