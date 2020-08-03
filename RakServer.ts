@@ -149,6 +149,10 @@ export default class RakServer extends events.EventEmitter {
         return this.#ip;
     }
 
+    get password() : string {
+        return this.#password;
+    }
+
     get connections() : Array<ReliabilityLayer> {
         return this.#connections;
     }

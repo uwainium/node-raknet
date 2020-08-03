@@ -90,4 +90,8 @@ export default class RakClient extends events.EventEmitter {
     get ip() : string {
         return this.#ip;
     }
+
+    get password() : string {
+        return this.#password;
+    }
 }
