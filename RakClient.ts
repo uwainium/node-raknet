@@ -40,7 +40,7 @@ export default class RakClient extends events.EventEmitter {
             }
         });
 
-
+        this.#connection = new ReliabilityLayer(this.#client, {port: this.#port, address: this.#ip});
     }
 
     onError(error) {
@@ -48,13 +48,7 @@ export default class RakClient extends events.EventEmitter {
     }
 
     onMessage(data, senderInfo) {
-        if(data.length() == 1) {
-            let messageId = data.readByte();
-
-            if(messageId === RakMessages.ID_OPEN_CONNECTION_REPLY) {
-                this.#connection = new ReliabilityLayer(this.#client, senderInfo);
-            }
-        } else {
+        if(data.length() !== 1) {
             const packets = this.#connection.handle_data(data);
             let finished = false;
 
@@ -70,7 +64,6 @@ export default class RakClient extends events.EventEmitter {
                 }
             }
         }
-
     }
 
     onPacket(packet : BitStream, senderInfo : Object) : void {
