@@ -94,4 +94,8 @@ export default class RakClient extends events.EventEmitter {
     get password() : string {
         return this.#password;
     }
+
+    get startTime() : number {
+        return this.#startTime;
+    }
 }
