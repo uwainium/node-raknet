@@ -40,6 +40,7 @@ export class ReliabilityLayer {
     #packetsSent;
     #sendMessageNumberIndex;
     #interval;
+    #splitPacketId;
 
     /**
      * Constructs a new instance of ReliabilityLayer and set default values for the object
@@ -67,6 +68,7 @@ export class ReliabilityLayer {
         this.#congestionWindow = 0;
         this.#packetsSent = 0;
         this.#sendMessageNumberIndex = 0;
+        this.#splitPacketId = 0;
         let layer = this;
         this.#interval = setInterval(function () {
             layer.sendLoop();
@@ -239,8 +241,34 @@ export class ReliabilityLayer {
             }
 
             if (ReliabilityLayer.packetHeaderLength(reliability, false) + packet.length() >= MTU_SIZE - UDP_HEADER_SIZE) {
-                // TODO: Add a way to split packets and iterate through them to add them to the queue
-                console.info("This packet needs to be split up!");
+                let dataOffset = 0;
+                let chunks = [];
+                while(dataOffset < packet.length()) {
+                    let dataLength = MTU_SIZE - UDP_HEADER_SIZE - ReliabilityLayer.packetHeaderLength(reliability, true);
+                    let chunk = Buffer.alloc(dataLength);
+                    packet.data.copy(chunk, 0, dataOffset, dataOffset + dataLength);
+                    chunks.push(new BitStream(chunk));
+                }
+
+                let splitPacketId = this.#splitPacketId;
+                this.#splitPacketId ++;
+
+                for(let i = 0; i < chunks.length; i ++) {
+                    let messageNumber = this.#sendMessageNumberIndex;
+                    this.#sendMessageNumberIndex ++;
+                    this.#sends.push({
+                        'packet': chunks[i],
+                        'reliability': reliability,
+                        'orderingIndex': orderingIndex,
+                        'splitPacketInfo': {
+                            'id': splitPacketId,
+                            'index': i,
+                            'count': chunks.length
+                        },
+                        'callback': resolve
+                    })
+                }
+
             } else {
                 this.#sends.push({
                     'packet': packet,
@@ -268,7 +296,7 @@ export class ReliabilityLayer {
             let index = this.#sendMessageNumberIndex;
             this.#sendMessageNumberIndex++;
 
-            this.sendMessage(packet.packet, index, packet.reliability, packet.orderingIndex, undefined, packet.callback);
+            this.sendMessage(packet.packet, index, packet.reliability, packet.orderingIndex, packet.splitPacketInfo, packet.callback);
         }
 
         if(!this.#acks.isEmpty()) {
