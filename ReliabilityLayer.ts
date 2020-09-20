@@ -228,64 +228,61 @@ export class ReliabilityLayer {
      * @param {Number} reliability
      */
     send(packet, reliability) {
-        return new Promise((resolve, reject) => {
-            let orderingIndex;
-            if (reliability === Reliability.UNRELIABLE_SEQUENCED) {
-                orderingIndex = this.#sequencedWriteIndex;
-                this.#sequencedWriteIndex++;
-            } else if (reliability === Reliability.RELIABLE_ORDERED) {
-                orderingIndex = this.#orderedWriteIndex;
-                this.#orderedWriteIndex++;
-            } else {
-                orderingIndex = undefined;
+        let orderingIndex;
+        if (reliability === Reliability.UNRELIABLE_SEQUENCED) {
+            orderingIndex = this.#sequencedWriteIndex;
+            this.#sequencedWriteIndex++;
+        } else if (reliability === Reliability.RELIABLE_ORDERED) {
+            orderingIndex = this.#orderedWriteIndex;
+            this.#orderedWriteIndex++;
+        } else {
+            orderingIndex = undefined;
+        }
+
+        if (ReliabilityLayer.packetHeaderLength(reliability, false) + packet.length() >= MTU_SIZE - UDP_HEADER_SIZE) {
+            let dataOffset = 0;
+            let chunks = [];
+            while(dataOffset < packet.length()) {
+                let dataLength = MTU_SIZE - UDP_HEADER_SIZE - ReliabilityLayer.packetHeaderLength(reliability, true);
+                let chunk = Buffer.alloc(dataLength);
+                packet.data.copy(chunk, 0, dataOffset, dataOffset + dataLength);
+                chunks.push(new BitStream(chunk));
             }
 
-            if (ReliabilityLayer.packetHeaderLength(reliability, false) + packet.length() >= MTU_SIZE - UDP_HEADER_SIZE) {
-                let dataOffset = 0;
-                let chunks = [];
-                while(dataOffset < packet.length()) {
-                    let dataLength = MTU_SIZE - UDP_HEADER_SIZE - ReliabilityLayer.packetHeaderLength(reliability, true);
-                    let chunk = Buffer.alloc(dataLength);
-                    packet.data.copy(chunk, 0, dataOffset, dataOffset + dataLength);
-                    chunks.push(new BitStream(chunk));
-                }
-
-                let splitPacketId = this.#splitPacketId;
-                this.#splitPacketId ++;
-                let packets = [];
-                for(let i = 0; i < chunks.length; i ++) {
-                    packets.push(new Promise((res) => {
-                        let messageNumber = this.#sendMessageNumberIndex;
-                        this.#sendMessageNumberIndex ++;
-                        this.#sends.push({
-                            'packet': chunks[i],
-                            'reliability': reliability,
-                            'orderingIndex': orderingIndex,
-                            'splitPacketInfo': {
-                                'id': splitPacketId,
-                                'index': i,
-                                'count': chunks.length
-                            },
-                            'callback': res
-                        })
-                    }));
-                }
-
-                return Promise.all(packets);
-
-            } else {
-                return new Promise((res) => {
+            let splitPacketId = this.#splitPacketId;
+            this.#splitPacketId ++;
+            let packets = [];
+            for(let i = 0; i < chunks.length; i ++) {
+                packets.push(new Promise((res) => {
+                    let messageNumber = this.#sendMessageNumberIndex;
+                    this.#sendMessageNumberIndex ++;
                     this.#sends.push({
-                        'packet': packet,
+                        'packet': chunks[i],
                         'reliability': reliability,
                         'orderingIndex': orderingIndex,
-                        'splitPacketInfo': undefined,
+                        'splitPacketInfo': {
+                            'id': splitPacketId,
+                            'index': i,
+                            'count': chunks.length
+                        },
                         'callback': res
-                    });
-                });
+                    })
+                }));
             }
-        });
 
+            return Promise.all(packets);
+
+        } else {
+            return new Promise((res) => {
+                this.#sends.push({
+                    'packet': packet,
+                    'reliability': reliability,
+                    'orderingIndex': orderingIndex,
+                    'splitPacketInfo': undefined,
+                    'callback': res
+                });
+            });
+        }
     }
 
     /**
