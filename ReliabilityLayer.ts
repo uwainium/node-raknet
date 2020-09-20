@@ -366,7 +366,7 @@ export class ReliabilityLayer {
         }
 
         this.#server.send(send.data, this.#connection.port, this.#connection.address, () => {
-            callback(send.data);
+            callback(send);
         });
         // Sends actual data to client here
     }
