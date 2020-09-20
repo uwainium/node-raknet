@@ -247,6 +247,7 @@ export class ReliabilityLayer {
                 let chunk = Buffer.alloc(dataLength);
                 packet.data.copy(chunk, 0, dataOffset, dataOffset + dataLength);
                 chunks.push(new BitStream(chunk));
+                dataOffset += dataLength;
             }
 
             let splitPacketId = this.#splitPacketId;
