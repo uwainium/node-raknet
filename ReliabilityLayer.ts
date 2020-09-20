@@ -252,30 +252,36 @@ export class ReliabilityLayer {
 
                 let splitPacketId = this.#splitPacketId;
                 this.#splitPacketId ++;
-
+                let packets = [];
                 for(let i = 0; i < chunks.length; i ++) {
-                    let messageNumber = this.#sendMessageNumberIndex;
-                    this.#sendMessageNumberIndex ++;
-                    this.#sends.push({
-                        'packet': chunks[i],
-                        'reliability': reliability,
-                        'orderingIndex': orderingIndex,
-                        'splitPacketInfo': {
-                            'id': splitPacketId,
-                            'index': i,
-                            'count': chunks.length
-                        },
-                        'callback': resolve
-                    })
+                    packets.push(new Promise((res) => {
+                        let messageNumber = this.#sendMessageNumberIndex;
+                        this.#sendMessageNumberIndex ++;
+                        this.#sends.push({
+                            'packet': chunks[i],
+                            'reliability': reliability,
+                            'orderingIndex': orderingIndex,
+                            'splitPacketInfo': {
+                                'id': splitPacketId,
+                                'index': i,
+                                'count': chunks.length
+                            },
+                            'callback': res
+                        })
+                    }));
                 }
 
+                return Promise.all(packets);
+
             } else {
-                this.#sends.push({
-                    'packet': packet,
-                    'reliability': reliability,
-                    'orderingIndex': orderingIndex,
-                    'splitPacketInfo': undefined,
-                    'callback': resolve
+                return new Promise((res) => {
+                    this.#sends.push({
+                        'packet': packet,
+                        'reliability': reliability,
+                        'orderingIndex': orderingIndex,
+                        'splitPacketInfo': undefined,
+                        'callback': res
+                    });
                 });
             }
         });
@@ -362,8 +368,9 @@ export class ReliabilityLayer {
         }
 
         this.#server.send(send.data, this.#connection.port, this.#connection.address, () => {
-            callback();
-        }); // Sends actual data to client here
+            callback(send.data);
+        });
+        // Sends actual data to client here
     }
 
     /**
