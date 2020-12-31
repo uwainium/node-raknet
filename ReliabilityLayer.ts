@@ -154,7 +154,7 @@ export class ReliabilityLayer {
                 splitPacketCount = data.readCompressed(4).readLong();
 
                 if (this.#queue[splitPacketId] === undefined) {
-                    this.#queue[splitPacketId] = [splitPacketCount];
+                    this.#queue[splitPacketId] = new Array<BitStream>(splitPacketCount);
                 }
             }
 
@@ -173,11 +173,7 @@ export class ReliabilityLayer {
             }
 
             if (isSplit) {
-                if(this.#queue[splitPacketId] === undefined) {
-                    this.#queue[splitPacketId] = new Array<BitStream>(splitPacketCount);
-                }
-
-                if (splitPacketId !== undefined && splitPacketIndex !== undefined) {
+               if (splitPacketId !== undefined && splitPacketIndex !== undefined) {
                     this.#queue[splitPacketId][splitPacketIndex] = packet;
                     let ready = true;
                     for (let i = 0; i < this.#queue[splitPacketId].length; i++) {
