@@ -173,6 +173,10 @@ export class ReliabilityLayer {
             }
 
             if (isSplit) {
+                if(this.#queue[splitPacketId] === undefined) {
+                    this.#queue[splitPacketId] = new Array<BitStream>(splitPacketCount);
+                }
+
                 if (splitPacketId !== undefined && splitPacketIndex !== undefined) {
                     this.#queue[splitPacketId][splitPacketIndex] = packet;
                     let ready = true;

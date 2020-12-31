@@ -675,7 +675,7 @@ export default class BitStream {
      * @param {BitStream} bs The BitStream to add on
      */
     concat(bs : BitStream) : void {
-        this.#data = Buffer.concat([this.#data, bs.#data]);
+        this.#data = Buffer.concat([this.#data, bs.data]);
         this.#byteCount = this.#data.length;
     }
 
