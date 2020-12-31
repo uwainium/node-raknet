@@ -29,7 +29,7 @@ export class ReliabilityLayer {
     #remoteSystemTime;
     #resends;
     #acks;
-    #queue;
+    #queue : Array<Array<BitStream>>;
     #sequencedReadIndex;
     #sequencedWriteIndex;
     #orderedReadIndex;
@@ -185,7 +185,10 @@ export class ReliabilityLayer {
                     if (ready) {
                         //concatenate all the split packets together
                         packet = new BitStream();
-                        packet.concat(this.#queue[splitPacketId]);
+                        for(let i = 0; i < this.#queue[splitPacketId].length; i++) {
+                            packet.concat(this.#queue[splitPacketId][i]);
+                        }
+
                     } else {
                         continue;
                     }
